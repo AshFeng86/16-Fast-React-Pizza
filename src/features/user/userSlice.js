@@ -1,0 +1,72 @@
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { getAddress } from "../../services/apiGeocoding";
+
+function getPosition() {
+  return new Promise(function (resolve, reject) {
+    navigator.geolocation.getCurrentPosition(resolve, reject);
+  });
+}
+
+// Redux Thunks with createAsyncThunk
+// fetchAddress now is an action creator
+export const fetchAddress = createAsyncThunk(
+  "user/fetchAddress",
+  async function () {
+    // 1) We get the user's geolocation position
+    const positionObj = await getPosition();
+    const position = {
+      latitude: positionObj.coords.latitude,
+      longitude: positionObj.coords.longitude,
+    };
+
+    // 2) Then we use a reverse geocoding API to get a description of the user's address, so we can display it the order form, so that the user can correct it if wrong
+    const addressObj = await getAddress(position);
+    const address = `${addressObj?.locality}, ${addressObj?.city} ${addressObj?.postcode}, ${addressObj?.countryName}`;
+
+    // 3) Then we return an object with the data that we are interested in
+
+    // Redux Thunks with createAsyncThunk
+    // Payload of fulfilled state
+    return { position, address };
+  },
+);
+
+// Modeling the “User” State with Redux Toolkit
+
+// Redux Thunks with createAsyncThunk
+const initialState = {
+  username: "",
+  status: "idle",
+  position: {},
+  address: "",
+  error: "",
+};
+
+const userSlice = createSlice({
+  name: "user",
+  initialState,
+  reducers: {
+    updateName(state, action) {
+      state.username = action.payload;
+    },
+  },
+  // Redux Thunks with createAsyncThunk
+  // Take care of 3 cases: pending state, fulfilled state, rejected state
+  extraReducers: (builder) =>
+    builder
+      .addCase(fetchAddress.pending, (state, action) => {
+        state.status = "loading";
+      })
+      .addCase(fetchAddress.fulfilled, (state, action) => {
+        state.position = action.payload.position;
+        state.address = action.payload.address;
+        state.status = "idle";
+      })
+      .addCase(fetchAddress.rejected, (state, action) => {
+        state.status = "error";
+        state.error = "There was a problem getting the address.";
+      }),
+});
+
+export const { updateName } = userSlice.actions;
+export default userSlice.reducer;
